@@ -1,0 +1,53 @@
+"""Execution helper for R-backed wrappers."""
+
+import json
+import subprocess
+import tempfile
+from pathlib import Path
+
+import pandas as pd
+
+from foli_decon.io import read_sample_by_celltype
+
+
+def get_r_script_path() -> Path:
+    """Return the absolute path to the package R entrypoint script."""
+
+    return Path(__file__).resolve().parent / "r_scripts" / "run_tools.R"
+
+
+def run_r_tool(
+    tool: str,
+    payload: dict[str, object],
+    rscript_command: list[str] | None = None,
+    output_path: str | None = None,
+) -> tuple[pd.DataFrame, dict[str, object]]:
+    """Run an R method wrapper and return parsed output with enriched metadata."""
+
+    with tempfile.TemporaryDirectory(prefix="foli_decon_r_") as temp_dir:
+        temp_path = Path(temp_dir)
+        payload_path = temp_path / "payload.json"
+        resolved_output_path = temp_path / "output.tsv" if output_path is None else Path(output_path)
+        resolved_output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        payload_copy = payload.copy()
+        payload_copy["output_path"] = str(resolved_output_path)
+
+        payload_path.write_text(json.dumps(payload_copy), encoding="utf-8")
+        command = ["Rscript"] if rscript_command is None else rscript_command.copy()
+        command.extend([str(get_r_script_path()), tool, str(payload_path)])
+        process = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if process.returncode != 0:
+            raise RuntimeError(
+                f"R tool '{tool}' failed with exit code {process.returncode}.\n"
+                f"stdout:\n{process.stdout}\n"
+                f"stderr:\n{process.stderr}"
+            )
+
+        result = read_sample_by_celltype(str(resolved_output_path))
+    return result, payload_copy

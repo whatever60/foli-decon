@@ -1,0 +1,47 @@
+name: foli-decon
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - pip
+  - uv
+  - numpy
+  - pandas
+  - scipy
+  - pytest
+  - podman
+  - r-base=4.2
+  - r-remotes
+  - r-jsonlite
+  - r-readr
+  - r-data.table
+  - r-limsolve
+  - r-dtangle
+  - r-dwls
+  - r-bisquerna
+  - r-music
+  - r-xcell
+  - r-epic
+  - r-bayesprism
+  - r-immunedeconv
+  - r-rfast
+  - r-ontologyindex
+  - r-minpack.lm
+  - bioconductor-pcamethods
+  - bioconductor-deconrnaseq
+  - r-ggplot2
+  - r-reshape2
+  - r-cowplot
+  - r-matrix
+  - bioconductor-biobase
+  - bioconductor-singlecellexperiment
+  - bioconductor-summarizedexperiment
+  - bioconductor-biocparallel
+  - bioconductor-singscore
+  - bioconductor-delayedarray
+  - bioconductor-delayedmatrixstats
+  - pip:
+      - -e .
+      - rpy2>=3.5
+      - anndata>=0.10

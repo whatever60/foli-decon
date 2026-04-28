@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+build/
+dist/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+.installed.cfg
+MANIFEST
+
+# Virtualenvs / package managers
+.venv/
+venv/
+env/
+.python-version
+uv.lock
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# Jupyter
+.ipynb_checkpoints/
+notebook_py/
+
+# R
+.Rhistory
+.Rapp.history
+.RData
+.RDataTmp
+.Ruserdata
+.Rproj.user/
+*.Rproj
+*.rds.lock
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project: benchmark outputs (timestamped artifacts, not source)
+benchmark_out_*/
+
+# Project: local data and credentials
+data/
+*.tsv.gz
+*.h5ad
+*.rds
+.cibersortx_credentials
+*.token
+*.secret
+.env
+.env.local
