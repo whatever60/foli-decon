@@ -1,4 +1,5 @@
 - Keep things simple, intuitive, and straightforward. Project complexity should be keep to the minimum all the time.
+- Before changing APIs, environments, or method support, read `docs/PROJECT_CONTRACT_AND_TODO.md`; it records decisions recovered from prior project discussion.
 - If code may fail, it should fail relentlessly:
   - Avoid try except unless instructed or absolutely necessary/useful (such as you need a finally block for some cleanups).
   - Don't check file existence before read. Instead, directly read. Believe that it will fail if the file does not exist.
