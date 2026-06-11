@@ -17,6 +17,16 @@ from foli_decon.preprocess import (
 )
 
 
+def _redact_sensitive_text(text: str | None, username: str, token: str) -> str:
+    """Redact CIBERSORTx credentials from process output."""
+
+    if text is None:
+        return ""
+    redacted = text.replace(username, "<cibersortx_username>")
+    redacted = redacted.replace(token, "<cibersortx_token>")
+    return redacted
+
+
 def _resolve_signature_matrix(
     signature: pd.DataFrame | None,
     scrna_counts: pd.DataFrame | None,
@@ -50,6 +60,7 @@ def run_cibersortx(
     image: str = "cibersortx/fractions",
     label: str | None = None,
     container_runtime_args: list[str] | None = None,
+    timeout_seconds: int | None = None,
 ) -> DeconvolutionResult:
     """Run CIBERSORTx fractions mode inside a container runtime."""
 
@@ -111,7 +122,24 @@ def run_cibersortx(
         if label is not None:
             command.extend(["--label", label])
 
-        subprocess.run(command, check=True)
+        try:
+            subprocess.run(
+                command,
+                check=True,
+                timeout=timeout_seconds,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError(f"CIBERSORTx fractions timed out after {timeout_seconds} seconds") from error
+        except subprocess.CalledProcessError as error:
+            stdout = _redact_sensitive_text(error.stdout, username=username, token=token)
+            stderr = _redact_sensitive_text(error.stderr, username=username, token=token)
+            raise RuntimeError(
+                f"CIBERSORTx fractions failed with exit code {error.returncode}.\n"
+                f"stdout:\n{stdout[-1200:]}\n"
+                f"stderr:\n{stderr[-1200:]}"
+            ) from error
 
         if label is None:
             result_file = output_path / "CIBERSORTx_Results.txt"
@@ -125,7 +153,7 @@ def run_cibersortx(
 
     return DeconvolutionResult(
         tool="cibersortx",
-        proportions=result,
+        proportion=result,
         metadata={
             "mixture_transform": mixture_transform,
             "signature_transform": signature_transform,
@@ -133,5 +161,6 @@ def run_cibersortx(
             "image": image,
             "label_used": label is not None,
             "container_runtime_args": runtime_args,
+            "timeout_seconds": 0 if timeout_seconds is None else timeout_seconds,
         },
     )

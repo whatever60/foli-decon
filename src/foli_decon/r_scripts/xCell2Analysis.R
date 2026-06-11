@@ -13,6 +13,7 @@ xCell2Analysis <- function(mix,
     scores <- vapply(signaturesCellType, function(sig) {
       singscore::simpleScore(mixRanked, upSet = sig, centerScore = FALSE)$TotalScore
     }, FUN.VALUE = double(ncol(mixRanked)))
+    scores <- matrix(scores, nrow = ncol(mixRanked))
     rownames(scores) <- colnames(mixRanked)
     return(scores)
   }
@@ -102,7 +103,7 @@ xCell2Analysis <- function(mix,
   }
   
   # Rank mix gene expression matrix
-  mixRanked <- singscore::rankGenes(mix[shared_genes, ], tiesMethod="average")
+  mixRanked <- singscore::rankGenes(mix[shared_genes, , drop = FALSE], tiesMethod="average")
   
   # Score and predict
   sigsCellTypes <- unique(unlist(lapply(
@@ -115,7 +116,7 @@ xCell2Analysis <- function(mix,
   # Get raw enrichment scores
   message("Calculating enrichment scores for all cell types...")
   
-  if (BPPARAM$workers > 1) {
+  if (BiocParallel::bpworkers(BPPARAM) > 1) {
     resRaw <- BiocParallel::bplapply(sigsCellTypes, calcEnrichment, BPPARAM = BPPARAM)
   }else{
     pb <- progress::progress_bar$new(
@@ -127,9 +128,9 @@ xCell2Analysis <- function(mix,
 
   names(resRaw) <- sigsCellTypes
   
-  res <- t(vapply(resRaw, function(cellTypeScores) {
-    rowMeans(cellTypeScores)
-  }, FUN.VALUE = double(nrow(resRaw[[1]]))))
+  res <- do.call(rbind, lapply(resRaw, rowMeans))
+  rownames(res) <- names(resRaw)
+  colnames(res) <- rownames(resRaw[[1]])
   
   # Check for negative enrichment scores
   neg_enrichment <- names(which(apply(res, 2, function(x){any(x<0)})))

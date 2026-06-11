@@ -8,10 +8,28 @@ import pandas as pd
 from foli_decon import run_two_split_benchmark_from_h5ad, supported_tools
 
 
+BENCHMARK_DEFAULT_EXCLUDED_TOOLS = frozenset(
+    {
+        "autogenes",
+        "blade",
+        "blue",
+        "cdseq",
+        "cibersortx",
+        "dissect",
+        "instaprism",
+        "music2",
+        "psea",
+        "scaden",
+        "scdc",
+        "tape",
+    }
+)
+
+
 def _parse_tool_list(raw: str) -> list[str]:
     """Parse comma-separated tool names."""
 
-    return [value.strip() for value in raw.split(",") if value.strip()]
+    return [value.strip().lower().replace("-", "_") for value in raw.split(",") if value.strip()]
 
 
 def _load_panel_genes(panel_genes_path: str | None) -> list[str] | None:
@@ -33,9 +51,14 @@ def main() -> None:
         required=True,
         help="One or more .h5ad paths",
     )
+    benchmark_default_tools = [
+        tool
+        for tool in supported_tools()
+        if tool not in BENCHMARK_DEFAULT_EXCLUDED_TOOLS
+    ]
     parser.add_argument(
         "--tools",
-        default=",".join(supported_tools()),
+        default=",".join(benchmark_default_tools),
         help="Comma-separated tool list",
     )
     parser.add_argument("--cell-type-col", default="celltype")

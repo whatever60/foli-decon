@@ -1,7 +1,9 @@
 """Two-split simulation benchmark workflow for deconvolution tools."""
 
 from dataclasses import dataclass
+from contextlib import nullcontext
 from pathlib import Path
+import tempfile
 
 import anndata as ad
 import numpy as np
@@ -9,7 +11,7 @@ import pandas as pd
 from scipy.spatial.distance import jensenshannon
 from scipy.sparse import issparse
 
-from foli_decon.api import run_deconvolution
+from foli_decon.api import run_deconvolution, train_reference
 
 
 @dataclass
@@ -273,6 +275,67 @@ def _compute_metrics(
     }
 
 
+def _corrcoef_or_nan(first: np.ndarray, second: np.ndarray) -> float:
+    """Return Pearson correlation or NaN if either vector is constant."""
+
+    if first.size < 2:
+        return float("nan")
+    if np.std(first) == 0 or np.std(second) == 0:
+        return float("nan")
+    return float(np.corrcoef(first, second)[0, 1])
+
+
+def _rank_vector(values: np.ndarray) -> np.ndarray:
+    """Return average ranks for a one-dimensional array."""
+
+    return pd.Series(values).rank(method="average").to_numpy(dtype=float)
+
+
+def _compute_score_metrics(
+    truth: pd.DataFrame,
+    prediction: pd.DataFrame,
+) -> dict[str, float | int]:
+    """Compute score-vs-truth association metrics for non-compositional outputs."""
+
+    truth_keyed = truth.copy()
+    prediction_keyed = prediction.copy()
+    truth_keyed.columns = pd.Index(truth_keyed.columns).astype(str).str.replace("_", "-", regex=False)
+    prediction_keyed.columns = pd.Index(prediction_keyed.columns).astype(str).str.replace("_", "-", regex=False)
+    truth_keyed = truth_keyed.T.groupby(level=0, sort=False).mean().T
+    prediction_keyed = prediction_keyed.T.groupby(level=0, sort=False).mean().T
+
+    shared_samples = [sample for sample in truth_keyed.index if sample in prediction_keyed.index]
+    shared_cell_types = [cell_type for cell_type in truth_keyed.columns if cell_type in prediction_keyed.columns]
+    if len(shared_samples) == 0:
+        raise ValueError("No overlapping sample names between truth and score output")
+    if len(shared_cell_types) == 0:
+        raise ValueError("No overlapping cell-type columns between truth and score output")
+
+    truth_values = truth_keyed.loc[shared_samples, shared_cell_types].to_numpy(dtype=float)
+    pred_values = prediction_keyed.loc[shared_samples, shared_cell_types].to_numpy(dtype=float)
+    if not np.isfinite(truth_values).all():
+        raise ValueError("Truth matrix contains non-finite values")
+    if not np.isfinite(pred_values).all():
+        raise ValueError("Score matrix contains non-finite values")
+
+    flat_truth = truth_values.ravel()
+    flat_pred = pred_values.ravel()
+    per_type_pearson = []
+    per_type_spearman = []
+    for i in range(truth_values.shape[1]):
+        per_type_pearson.append(_corrcoef_or_nan(truth_values[:, i], pred_values[:, i]))
+        per_type_spearman.append(_corrcoef_or_nan(_rank_vector(truth_values[:, i]), _rank_vector(pred_values[:, i])))
+
+    return {
+        "score_pearson": _corrcoef_or_nan(flat_truth, flat_pred),
+        "score_spearman": _corrcoef_or_nan(_rank_vector(flat_truth), _rank_vector(flat_pred)),
+        "mean_celltype_score_pearson": float(np.nanmean(per_type_pearson)),
+        "mean_celltype_score_spearman": float(np.nanmean(per_type_spearman)),
+        "n_shared_samples": len(shared_samples),
+        "n_shared_cell_types": len(shared_cell_types),
+    }
+
+
 def _prepare_split_indices(
     cell_types: np.ndarray,
     selected_cell_types: list[str],
@@ -374,12 +437,23 @@ def run_two_split_benchmark_from_adata(
     split_key_col: str | None = None,
     panel_genes: list[str] | None = None,
     xcell2_object_path: str | None = None,
+    xcell2_return_signatures: bool = True,
+    xcell2_workers: int = 1,
+    xcell2_min_sc_genes: int = 50,
+    xcell2_min_pb_cells: int = 3,
+    xcell2_min_pb_samples: int = 1,
     cibersortx_username: str | None = None,
     cibersortx_token: str | None = None,
     tool_kwargs: dict[str, dict[str, object]] | None = None,
     seed: int = 0,
 ) -> BenchmarkResult:
     """Run two-split pseudobulk benchmark against selected tools."""
+
+    tools = [tool.lower().replace("-", "_") for tool in tools]
+    if tool_kwargs is not None:
+        tool_kwargs = {tool.lower().replace("-", "_"): kwargs for tool, kwargs in tool_kwargs.items()}
+    if "music2" in tools:
+        raise ValueError("music2 requires separate control_mixture and case_mixture inputs; it is not a single-mixture benchmark method")
 
     rng = np.random.default_rng(seed)
     cell_types = adata.obs[cell_type_col].astype(str).to_numpy()
@@ -461,53 +535,167 @@ def run_two_split_benchmark_from_adata(
     reference_cell_types_series = pd.Series(reference_labels, index=reference_cell_names, name="cell_type")
     reference_batches = pd.Series(batches[reference_indices], index=reference_cell_names, name="batch_id")
 
-    rows = []
-    predictions: dict[str, pd.DataFrame] = {}
-    for tool in tools:
-        for scenario_name, mixture in scenario_mixtures.items():
-            kwargs: dict[str, object] = {"mixture": mixture}
-            if tool in {"epic", "dtangle", "deconrnaseq", "dwls"}:
-                kwargs["signature"] = signature
-            if tool in {"music", "bisque", "bayesprism"}:
-                kwargs["scrna_counts"] = scrna_counts
-                kwargs["cell_types"] = reference_cell_types_series
-            if tool in {"music", "bisque"}:
-                kwargs["batch_ids"] = reference_batches
-            if tool == "xcell2":
-                if xcell2_object_path is None:
-                    raise ValueError("xcell2_object_path is required for tool='xcell2'")
-                kwargs["xcell2_object_path"] = xcell2_object_path
-            if tool == "cibersortx":
-                if cibersortx_username is None or cibersortx_token is None:
-                    raise ValueError("cibersortx_username and cibersortx_token are required for tool='cibersortx'")
-                kwargs["signature"] = signature
-                kwargs["username"] = cibersortx_username
-                kwargs["token"] = cibersortx_token
-
-            if tool_kwargs is not None and tool in tool_kwargs:
-                kwargs.update(tool_kwargs[tool])
-
-            try:
-                result = run_deconvolution(tool=tool, **kwargs)
-                predictions[f"{tool}:{scenario_name}"] = result.proportions
+    xcell2_context = (
+        tempfile.TemporaryDirectory(prefix="foli_benchmark_xcell2_")
+        if "xcell2" in tools and xcell2_object_path is None
+        else nullcontext(None)
+    )
+    with xcell2_context as temp_xcell2_dir:
+        trained_xcell2_object_path = xcell2_object_path
+        rows = []
+        predictions: dict[str, pd.DataFrame] = {}
+        for tool in tools:
+            if tool == "xcell2" and trained_xcell2_object_path is None:
+                trained_xcell2_object_path = str(Path(temp_xcell2_dir) / "xcell2_reference.rds")
+                try:
+                    train_reference(
+                        tool="xcell2",
+                        scrna_counts=scrna_counts,
+                        cell_types=reference_cell_types_series,
+                        output_path=trained_xcell2_object_path,
+                        return_signatures=xcell2_return_signatures,
+                        min_sc_genes=xcell2_min_sc_genes,
+                        min_pb_cells=xcell2_min_pb_cells,
+                        min_pb_samples=xcell2_min_pb_samples,
+                        xcell2_workers=xcell2_workers,
+                        seed=seed,
+                    )
+                except Exception as error:
+                    for scenario_name in scenario_mixtures:
+                        rows.append(
+                            {
+                                "dataset": dataset_name,
+                                "tool": tool,
+                                "scenario": scenario_name,
+                                "status": "failed",
+                                "error_message": f"xCell2 reference training failed: {error}",
+                                "mae": np.nan,
+                                "rmse": np.nan,
+                                "js_divergence": np.nan,
+                                "cosine_similarity": np.nan,
+                                "kl_divergence_truth_to_pred": np.nan,
+                                "kl_divergence_pred_to_truth": np.nan,
+                                "kl_divergence_symmetric": np.nan,
+                                "hellinger_distance": np.nan,
+                                "total_variation_distance": np.nan,
+                                "bray_curtis_distance": np.nan,
+                                "score_pearson": np.nan,
+                                "score_spearman": np.nan,
+                                "mean_celltype_score_pearson": np.nan,
+                                "mean_celltype_score_spearman": np.nan,
+                                "n_shared_samples": 0,
+                                "n_shared_cell_types": 0,
+                            }
+                        )
+                    continue
+            for scenario_name, mixture in scenario_mixtures.items():
+                kwargs: dict[str, object] = {"mixture": mixture}
+                if tool in {"epic", "dtangle", "deconrnaseq", "dwls", "cdseq", "autogenes"}:
+                    kwargs["signature"] = signature
+                if tool in {
+                    "music",
+                    "bisque",
+                    "bayesprism",
+                    "scdc",
+                    "instaprism",
+                    "blade",
+                    "blue",
+                    "tape",
+                    "scaden",
+                    "dissect",
+                }:
+                    kwargs["scrna_counts"] = scrna_counts
+                    kwargs["cell_types"] = reference_cell_types_series
+                if tool in {"music", "bisque", "scdc", "dissect", "blue"}:
+                    kwargs["batch_ids"] = reference_batches
                 if tool == "xcell2":
-                    shared_samples = [
-                        sample
-                        for sample in scenario_truth[scenario_name].index
-                        if sample in result.proportions.index
-                    ]
-                    shared_cell_types = [
-                        cell_type
-                        for cell_type in scenario_truth[scenario_name].columns
-                        if cell_type in result.proportions.columns
-                    ]
+                    kwargs["xcell2_object_path"] = trained_xcell2_object_path
+                    if xcell2_return_signatures:
+                        kwargs["raw_scores"] = True
+                        kwargs["spillover"] = False
+                    kwargs["xcell2_workers"] = xcell2_workers
+                if tool == "cibersortx":
+                    if cibersortx_username is None or cibersortx_token is None:
+                        raise ValueError("cibersortx_username and cibersortx_token are required for tool='cibersortx'")
+                    kwargs["signature"] = signature
+                    kwargs["username"] = cibersortx_username
+                    kwargs["token"] = cibersortx_token
+
+                if tool_kwargs is not None and tool in tool_kwargs:
+                    kwargs.update(tool_kwargs[tool])
+
+                try:
+                    result = run_deconvolution(tool=tool, **kwargs)
+                    if tool in {"xcell", "xcell2", "mcp_counter"}:
+                        if result.score is None:
+                            raise ValueError(f"Tool '{tool}' did not return score output")
+                        predictions[f"{tool}:{scenario_name}"] = result.score
+                        try:
+                            metric_values = _compute_score_metrics(
+                                truth=scenario_truth[scenario_name],
+                                prediction=result.score,
+                            )
+                            error_message = ""
+                        except ValueError as metric_error:
+                            metric_values = {
+                                "score_pearson": np.nan,
+                                "score_spearman": np.nan,
+                                "mean_celltype_score_pearson": np.nan,
+                                "mean_celltype_score_spearman": np.nan,
+                                "n_shared_samples": 0,
+                                "n_shared_cell_types": 0,
+                            }
+                            error_message = f"score metrics not computed: {metric_error}"
+                        rows.append(
+                            {
+                                "dataset": dataset_name,
+                                "tool": tool,
+                                "scenario": scenario_name,
+                                "status": "ok",
+                                "error_message": error_message,
+                                "mae": np.nan,
+                                "rmse": np.nan,
+                                "js_divergence": np.nan,
+                                "cosine_similarity": np.nan,
+                                "kl_divergence_truth_to_pred": np.nan,
+                                "kl_divergence_pred_to_truth": np.nan,
+                                "kl_divergence_symmetric": np.nan,
+                                "hellinger_distance": np.nan,
+                                "total_variation_distance": np.nan,
+                                "bray_curtis_distance": np.nan,
+                                **metric_values,
+                            }
+                        )
+                    else:
+                        if result.proportion is None:
+                            raise ValueError(f"Tool '{tool}' did not return proportion output")
+                        predictions[f"{tool}:{scenario_name}"] = result.proportion
+                        metric_values = _compute_metrics(
+                            truth=scenario_truth[scenario_name],
+                            prediction=result.proportion,
+                        )
+                        rows.append(
+                            {
+                                "dataset": dataset_name,
+                                "tool": tool,
+                                "scenario": scenario_name,
+                                "status": "ok",
+                                "error_message": "",
+                                **metric_values,
+                                "score_pearson": np.nan,
+                                "score_spearman": np.nan,
+                                "mean_celltype_score_pearson": np.nan,
+                                "mean_celltype_score_spearman": np.nan,
+                            }
+                        )
+                except Exception as error:
                     rows.append(
                         {
                             "dataset": dataset_name,
                             "tool": tool,
                             "scenario": scenario_name,
-                            "status": "ok",
-                            "error_message": "score_output_not_proportion_metrics_skipped",
+                            "status": "failed",
+                            "error_message": str(error),
                             "mae": np.nan,
                             "rmse": np.nan,
                             "js_divergence": np.nan,
@@ -518,54 +706,21 @@ def run_two_split_benchmark_from_adata(
                             "hellinger_distance": np.nan,
                             "total_variation_distance": np.nan,
                             "bray_curtis_distance": np.nan,
-                            "n_shared_samples": len(shared_samples),
-                            "n_shared_cell_types": len(shared_cell_types),
+                            "score_pearson": np.nan,
+                            "score_spearman": np.nan,
+                            "mean_celltype_score_pearson": np.nan,
+                            "mean_celltype_score_spearman": np.nan,
+                            "n_shared_samples": 0,
+                            "n_shared_cell_types": 0,
                         }
                     )
-                else:
-                    metric_values = _compute_metrics(
-                        truth=scenario_truth[scenario_name],
-                        prediction=result.proportions,
-                    )
-                    rows.append(
-                        {
-                            "dataset": dataset_name,
-                            "tool": tool,
-                            "scenario": scenario_name,
-                            "status": "ok",
-                            "error_message": "",
-                            **metric_values,
-                        }
-                    )
-            except Exception as error:
-                rows.append(
-                    {
-                        "dataset": dataset_name,
-                        "tool": tool,
-                        "scenario": scenario_name,
-                        "status": "failed",
-                        "error_message": str(error),
-                        "mae": np.nan,
-                        "rmse": np.nan,
-                        "js_divergence": np.nan,
-                        "cosine_similarity": np.nan,
-                        "kl_divergence_truth_to_pred": np.nan,
-                        "kl_divergence_pred_to_truth": np.nan,
-                        "kl_divergence_symmetric": np.nan,
-                        "hellinger_distance": np.nan,
-                        "total_variation_distance": np.nan,
-                        "bray_curtis_distance": np.nan,
-                        "n_shared_samples": 0,
-                        "n_shared_cell_types": 0,
-                    }
-                )
 
-    metrics = pd.DataFrame(rows)
-    return BenchmarkResult(
-        metrics=metrics,
-        truth_by_scenario=scenario_truth,
-        predictions=predictions,
-    )
+        metrics = pd.DataFrame(rows)
+        return BenchmarkResult(
+            metrics=metrics,
+            truth_by_scenario=scenario_truth,
+            predictions=predictions,
+        )
 
 
 def run_two_split_benchmark_from_h5ad(
@@ -588,6 +743,11 @@ def run_two_split_benchmark_from_h5ad(
     split_key_col: str | None = None,
     panel_genes: list[str] | None = None,
     xcell2_object_path: str | None = None,
+    xcell2_return_signatures: bool = True,
+    xcell2_workers: int = 1,
+    xcell2_min_sc_genes: int = 50,
+    xcell2_min_pb_cells: int = 3,
+    xcell2_min_pb_samples: int = 1,
     cibersortx_username: str | None = None,
     cibersortx_token: str | None = None,
     tool_kwargs: dict[str, dict[str, object]] | None = None,
@@ -639,6 +799,11 @@ def run_two_split_benchmark_from_h5ad(
         split_key_col=split_key_col,
         panel_genes=panel_genes,
         xcell2_object_path=xcell2_object_path,
+        xcell2_return_signatures=xcell2_return_signatures,
+        xcell2_workers=xcell2_workers,
+        xcell2_min_sc_genes=xcell2_min_sc_genes,
+        xcell2_min_pb_cells=xcell2_min_pb_cells,
+        xcell2_min_pb_samples=xcell2_min_pb_samples,
         cibersortx_username=cibersortx_username,
         cibersortx_token=cibersortx_token,
         tool_kwargs=tool_kwargs,

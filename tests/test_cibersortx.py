@@ -27,7 +27,7 @@ def test_run_cibersortx_with_mocked_container(monkeypatch) -> None:
 
     captured: dict[str, list[str]] = {}
 
-    def fake_run(command: list[str], check: bool) -> None:
+    def fake_run(command: list[str], check: bool, **kwargs) -> None:
         """Simulate a successful CIBERSORTx container run by writing expected output."""
 
         captured["command"] = command
@@ -60,6 +60,6 @@ def test_run_cibersortx_with_mocked_container(monkeypatch) -> None:
     )
 
     assert result.tool == "cibersortx"
-    assert list(result.proportions.columns) == ["CT_A", "CT_B"]
-    assert result.proportions.shape == (2, 2)
+    assert list(result.proportion.columns) == ["CT_A", "CT_B"]
+    assert result.proportion.shape == (2, 2)
     assert captured["command"][0] == "podman"
