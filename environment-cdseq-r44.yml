@@ -1,0 +1,8 @@
+name: foli-decon-cdseq-r44
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base=4.4
+  - r-jsonlite
+  - r-cdseq

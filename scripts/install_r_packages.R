@@ -12,7 +12,9 @@ required_conda_packages <- c(
   "BisqueRNA",
   "DWLS",
   "MuSiC",
-  "immunedeconv"
+  "quantiseqr",
+  "PSEA",
+  "ConsensusTME"
 )
 
 missing_conda_packages <- setdiff(required_conda_packages, rownames(installed.packages()))
@@ -38,6 +40,14 @@ if (!("AnnotationHub" %in% rownames(installed.packages()))) {
   BiocManager::install("AnnotationHub", ask = FALSE, update = FALSE)
 }
 
+if (!("estimate" %in% rownames(installed.packages()))) {
+  install.packages(
+    "estimate",
+    repos = "http://r-forge.r-project.org",
+    dependencies = FALSE
+  )
+}
+
 if (!("xCell2" %in% rownames(installed.packages()))) {
   remotes::install_github(
     "AlmogAngel/xCell2",
@@ -47,6 +57,6 @@ if (!("xCell2" %in% rownames(installed.packages()))) {
   )
 }
 
-tracked_packages <- c(required_conda_packages, "xCell2")
+tracked_packages <- c(required_conda_packages, "estimate", "xCell2")
 installed <- as.data.frame(installed.packages()[, c("Package", "Version")])
 print(installed[installed$Package %in% tracked_packages, ])

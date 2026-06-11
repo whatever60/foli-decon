@@ -1,0 +1,15 @@
+name: foli-decon-tape-cpu
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pytorch-cpu
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - anndata
+  - matplotlib
+  - seaborn
+  - tqdm

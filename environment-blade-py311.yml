@@ -1,0 +1,11 @@
+name: foli-decon-blade-py311
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - numba
+  - numpy
+  - scipy
+  - scikit-learn
+  - joblib

@@ -1,0 +1,19 @@
+name: foli-decon-blue-cpu
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - scanpy
+  - anndata
+  - h5py
+  - pytorch-cpu
+  - tqdm
+  - pyyaml
+  - openpyxl
+  - pyreadr

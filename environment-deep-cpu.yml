@@ -1,0 +1,11 @@
+name: foli-decon-deep-cpu
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.9
+  - pip
+  - cython=0.29.28
+  - c-compiler
+  - cxx-compiler
+  - make

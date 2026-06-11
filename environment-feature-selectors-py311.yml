@@ -1,0 +1,23 @@
+name: foli-decon-feature-selectors-py311
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - pytorch-cpu
+  - pytorch-lightning
+  - scanpy
+  - anndata
+  - h5py
+  - seaborn
+  - umap-learn
+  - cosg
+  - toml
+  - tqdm
+  - sortedcontainers

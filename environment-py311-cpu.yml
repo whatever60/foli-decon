@@ -1,0 +1,29 @@
+name: foli-decon-py311-cpu
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - joblib
+  - numba
+  - anndata
+  - h5py
+  - scanpy
+  - pytorch-cpu
+  - pytorch-lightning
+  - matplotlib
+  - seaborn
+  - tqdm
+  - pyyaml
+  - openpyxl
+  - pyreadr
+  - umap-learn
+  - cosg
+  - toml
+  - sortedcontainers
+  - autogenes=1.0.4

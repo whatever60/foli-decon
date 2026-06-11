@@ -1,0 +1,20 @@
+name: foli-decon-instaprism-r44
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base=4.4.3
+  - r-remotes
+  - r-dplyr
+  - r-tidyr
+  - r-matrix
+  - r-caret
+  - r-nmf
+  - r-pheatmap
+  - r-abind
+  - r-pbapply
+  - r-rcpp
+  - r-rcpparmadillo
+  - bioconductor-biobase
+  - cxx-compiler
+  - make

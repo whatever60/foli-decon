@@ -1,0 +1,19 @@
+name: foli-decon-mead-r44
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base=4.4
+  - r-remotes
+  - r-jsonlite
+  - r-matrix
+  - r-cluster
+  - r-rfast
+  - r-ashr
+  - r-squarem
+  - r-truncnorm
+  - r-mixsqp
+  - r-quadprog
+  - bioconductor-qvalue
+  - bioconductor-singlecellexperiment
+  - bioconductor-summarizedexperiment

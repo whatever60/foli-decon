@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+python -m pip install \
+  tensorflow-cpu==2.7.0 \
+  keras==2.7.0 \
+  numpy==1.26.3 \
+  scikit-learn==1.1.2 \
+  pandas==1.4.3 \
+  anndata==0.8.0 \
+  h5py==3.6.0 \
+  scanpy==1.9.1 \
+  shap==0.40.0 \
+  Cython==0.29.28 \
+  matplotlib==3.5.0 \
+  setuptools==69.0.3 \
+  tqdm==4.62.3 \
+  'protobuf<3.20,>=3.19.6' \
+  click \
+  rich \
+  seaborn
+
+python -m pip install --no-deps git+https://github.com/imsb-uke/DISSECT
+python -m pip install --no-deps scaden==1.1.2

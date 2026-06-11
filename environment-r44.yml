@@ -1,0 +1,39 @@
+name: foli-decon-r44
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base=4.4.3
+  - r-remotes
+  - r-jsonlite
+  - r-data.table
+  - r-matrix
+  - r-nnls
+  - r-ggplot2
+  - r-mcmcpack
+  - r-gplots
+  - r-cluster
+  - r-rfast
+  - r-ashr
+  - r-squarem
+  - r-truncnorm
+  - r-mixsqp
+  - r-quadprog
+  - r-dplyr
+  - r-tidyr
+  - r-caret
+  - r-nmf
+  - r-pheatmap
+  - r-abind
+  - r-pbapply
+  - r-rcpp
+  - r-rcpparmadillo
+  - r-cdseq
+  - bioconductor-toast
+  - bioconductor-biobase
+  - bioconductor-singlecellexperiment
+  - bioconductor-summarizedexperiment
+  - bioconductor-sva
+  - bioconductor-qvalue
+  - cxx-compiler
+  - make

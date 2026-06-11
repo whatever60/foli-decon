@@ -57,9 +57,12 @@ Thumbs.db
 
 # Project: benchmark outputs (timestamped artifacts, not source)
 benchmark_out_*/
+cache/
+model.pth
 
 # Project: local data and credentials
 data/
+resources/blue/BLUE/
 *.tsv.gz
 *.h5ad
 *.rds
