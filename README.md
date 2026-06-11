@@ -168,13 +168,9 @@ mamba run -n foli-decon-py311-cpu bash scripts/install_py311_cpu_sidecar.sh
 Use these tools with `python_env="foli-decon-py311-cpu"`.
 By default `scripts/install_py311_cpu_sidecar.sh` clones upstream BLUE into `resources/blue/BLUE`. Set `FOLI_DECON_BLUE_REPO=/path/to/BLUE` or pass `blue_repo_path=...` to use a different checkout.
 
-### Legacy per-tool sidecars
-
-Older one-tool sidecar YAMLs are retained as troubleshooting/probe artifacts, but the compressed layout above is the recommended path.
-
 Environment build lessons and known dependency compromises are recorded in
 [`docs/ENVIRONMENT_LESSONS.md`](docs/ENVIRONMENT_LESSONS.md).
-The main env and all sidecar YAMLs were dry-run solved on 2026-06-11 without changing existing envs.
+The main env and active sidecar YAMLs were dry-run solved on 2026-06-11.
 
 ## Quick start
 

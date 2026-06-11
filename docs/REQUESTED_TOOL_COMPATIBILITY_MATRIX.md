@@ -102,5 +102,6 @@ environment-py311-cpu.yml
 environment-scdc-r40.yml
 ```
 
-Legacy per-tool sidecar YAMLs are retained as troubleshooting/probe artifacts,
-but the compressed envs above are the recommended installation targets.
+Legacy per-tool probe YAMLs were removed after compression. The compressed envs
+above are the supported installation targets; use git history if an old
+one-tool probe spec is needed for troubleshooting.

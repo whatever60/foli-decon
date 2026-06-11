@@ -29,8 +29,9 @@ The compressed sidecar layout is:
 - `foli-decon-deep-cpu`: Scaden and DISSECT
 - `foli-decon-py311-cpu`: AutoGeneS, BLADE, BLUE, TAPE, MarkerMap, scGeneFit
 
-Older per-tool sidecar YAMLs are retained as troubleshooting/probe artifacts,
-but they are not the preferred installation route.
+Older one-tool probe YAMLs were removed after compression to keep the root
+directory focused on active installation targets. Use git history if a legacy
+per-tool spec is needed for troubleshooting.
 
 The local probe logs live under `cache/mamba_probe/` and are intentionally
 ignored by git because they are machine-specific solver artifacts.
