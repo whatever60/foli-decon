@@ -1,0 +1,14 @@
+name: foli-decon-bistreroc
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - pip
+  - git
+  - numpy>=1.26
+  - r-base=4.4
+  - r-data.table
+  - r-e1071
+  - pip:
+      - "bistreroc @ git+https://github.com/whatever60/BistreRoc.git@v0.1.0"

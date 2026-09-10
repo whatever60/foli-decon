@@ -82,6 +82,7 @@ def test_cli_default_excludes_manual_or_sidecar_methods() -> None:
     default_excluded_tools = script_globals["BENCHMARK_DEFAULT_EXCLUDED_TOOLS"]
     expected_exclusions = {
         "autogenes",
+        "bistreroc",
         "blade",
         "blue",
         "cdseq",
@@ -108,7 +109,7 @@ def test_two_split_benchmark_passes_references_to_explicit_sidecar_tools(monkeyp
 
         seen_keys[tool] = set(kwargs)
         mixture = kwargs["mixture"]
-        if tool == "autogenes":
+        if tool in {"autogenes", "bistreroc"}:
             output_columns = kwargs["signature"].columns.tolist()
         else:
             output_columns = pd.Index(kwargs["cell_types"]).unique().tolist()
@@ -124,7 +125,7 @@ def test_two_split_benchmark_passes_references_to_explicit_sidecar_tools(monkeyp
     result = run_two_split_benchmark_from_adata(
         adata=adata,
         dataset_name="tiny",
-        tools=["autogenes", "blade", "blue", "tape"],
+        tools=["autogenes", "bistreroc", "blade", "blue", "tape"],
         cell_type_col="celltype",
         batch_col="donor",
         count_layer="raw_counts",
@@ -136,9 +137,10 @@ def test_two_split_benchmark_passes_references_to_explicit_sidecar_tools(monkeyp
         seed=12,
     )
 
-    assert result.metrics.shape[0] == 12
+    assert result.metrics.shape[0] == 15
     assert (result.metrics["status"] == "ok").all()
     assert "signature" in seen_keys["autogenes"]
+    assert "signature" in seen_keys["bistreroc"]
     assert {"scrna_counts", "cell_types"}.issubset(seen_keys["blade"])
     assert {"scrna_counts", "cell_types", "batch_ids"}.issubset(seen_keys["blue"])
     assert {"scrna_counts", "cell_types"}.issubset(seen_keys["tape"])

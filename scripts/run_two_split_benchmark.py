@@ -11,6 +11,7 @@ from foli_decon import run_two_split_benchmark_from_h5ad, supported_tools
 BENCHMARK_DEFAULT_EXCLUDED_TOOLS = frozenset(
     {
         "autogenes",
+        "bistreroc",
         "blade",
         "blue",
         "cdseq",

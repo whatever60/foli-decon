@@ -31,6 +31,7 @@ This repo standardizes three things:
 | dtangle | `run_dtangle` | signature (`genes x cell_types`) | `cpm_log1p` | optional `n_markers` |
 | BayesPrism | `run_bayesprism` | scRNA counts (`genes x cells`) + cell types | `raw` | optional cell states, tumor key, outlier controls |
 | DeconRNASeq | `run_deconrnaseq` | signature (`genes x cell_types`) | `cpm` | optional `checksig` |
+| BistreRoc | `run_bistreroc`, `train_bistreroc_reference` | signature, or labeled raw scRNA counts for signature training | `raw` | dedicated sidecar; supports signature generation and fraction estimation |
 | CIBERSORTx | `run_cibersortx` | signature (`genes x cell_types`) | `raw` | `username`, `token`, container runtime |
 | Bisque | `run_bisque` | scRNA counts + cell types + donor IDs | `raw` | `batch_ids` |
 | DWLS | `run_dwls` | signature (`genes x cell_types`) | `cpm` | optional submethod |
@@ -168,6 +169,16 @@ mamba run -n foli-decon-py311-cpu bash scripts/install_py311_cpu_sidecar.sh
 Use these tools with `python_env="foli-decon-py311-cpu"`.
 By default `scripts/install_py311_cpu_sidecar.sh` clones upstream BLUE into `resources/blue/BLUE`. Set `FOLI_DECON_BLUE_REPO=/path/to/BLUE` or pass `blue_repo_path=...` to use a different checkout.
 
+### 8. Optional BistreRoc sidecar
+
+The dedicated environment currently installs the tagged BistreRoc release directly from GitHub:
+
+```bash
+mamba env create -f environment-bistreroc.yml
+```
+
+The BistreRoc wrappers use `foli-decon-bistreroc` by default.
+
 Environment build lessons and known dependency compromises are recorded in
 [`docs/ENVIRONMENT_LESSONS.md`](docs/ENVIRONMENT_LESSONS.md).
 The main env and active sidecar YAMLs were dry-run solved on 2026-06-11.
@@ -240,7 +251,7 @@ Notes:
 - proportion-error metrics are skipped for `xcell2` because it returns non-compositional scores; score-association metrics are reported when labels overlap.
 - default split is key-based (`key_stratified`) using `batch_col`; override with `--split-strategy random_cell_type` if needed.
 - set `--split-key-col donor` (or sample/batch key) to control which key defines reference/eval partitioning.
-- `autogenes`, `blade`, `blue`, `cdseq`, `cibersortx`, `dissect`, `instaprism`, `music2`, `psea`, `scaden`, `scdc`, and `tape` are not included in the default CLI tool list because they need credentials, marker sets, sidecar envs, heavier training, or non-single-mixture inputs; pass them explicitly when configured.
+- `autogenes`, `bistreroc`, `blade`, `blue`, `cdseq`, `cibersortx`, `dissect`, `instaprism`, `music2`, `psea`, `scaden`, `scdc`, and `tape` are not included in the default CLI tool list because they need credentials, marker sets, sidecar envs, heavier training, or non-single-mixture inputs; pass them explicitly when configured.
 
 ## Input conventions
 
@@ -1038,6 +1049,7 @@ Why this matters for Foli-seq:
 
 - R-backed wrappers call `src/foli_decon/r_scripts/run_tools.R` via `Rscript` subprocess
 - TAPE, BLADE, BLUE, AutoGeneS, Scaden, and DISSECT wrappers call Python sidecar commands via subprocess
+- BistreRoc wrappers call the standalone `bistreroc` CLI in the dedicated sidecar
 - CIBERSORTx wrapper calls containerized `cibersortx/fractions` via `podman`/`docker` subprocess
 - current implementation does not use `rpy2`; R communication is file + subprocess based
 - shared preprocess logic lives in `src/foli_decon/preprocess.py`
@@ -1060,7 +1072,33 @@ Why this matters for Foli-seq:
 - `Scaden` and `DISSECT` are CPU TensorFlow sidecar methods; start with small `train_steps`/`n_training_samples` for smoke tests.
 - `BayesPrism` can use subtype labels (`cell_states`) in addition to primary `cell_types`.
 - `BayesPrism` exposes `outlier_cut`, `outlier_fraction`, and `pseudo_min` for panel-size tuning.
+- `BistreRoc` uses `train_bistreroc_reference` for signature generation and `run_bistreroc` for fraction estimation.
 - `CIBERSORTx` requires web credentials and container runtime access.
+
+## BistreRoc wrapper usage
+
+Both computational stages are available directly and through the unified dispatchers:
+
+```python
+from foli_decon import run_bistreroc, train_bistreroc_reference
+
+trained_reference = train_bistreroc_reference(
+    scrna_counts=scrna_counts,
+    cell_types=cell_types,
+    output_path="bistreroc_signature.tsv.gz",
+)
+
+result = run_bistreroc(
+    mixture=mixture,
+    signature=trained_reference.signature,
+)
+
+print(result.proportion.head())
+```
+
+The same stages can be called as `train_reference(tool="bistreroc", ...)` and
+`run_deconvolution(tool="bistreroc", ...)`. The sidecar install is pinned to
+the BistreRoc `v0.1.0` GitHub tag until the Bioconda package is available.
 
 ## CIBERSORTx wrapper usage
 
@@ -1094,7 +1132,7 @@ Primary path:
 1. single environment `foli-decon`
 2. conda/mamba packages first for all available decon tools
 3. small post-install script only for packages missing from conda (currently `xCell2`)
-4. affiliated sidecar envs for incompatible R, TensorFlow, PyTorch, or old Python stacks (`SCDC`, `InstaPrism`, `CDSeq`, `TAPE`, `BLADE`, `BLUE`, `Scaden`, `DISSECT`, `AutoGeneS`)
+4. affiliated sidecar envs for incompatible or separately released tools (`SCDC`, `InstaPrism`, `CDSeq`, `TAPE`, `BLADE`, `BLUE`, `Scaden`, `DISSECT`, `AutoGeneS`, `BistreRoc`)
 
 Fallback path if a method remains incompatible in the unified env:
 1. keep Python wrapper API stable

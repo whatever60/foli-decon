@@ -22,6 +22,7 @@ from foli_decon.tools.bulk_tools import (
     select_features_scgenefit,
     train_xcell2_reference,
 )
+from foli_decon.tools.bistreroc import run_bistreroc, train_bistreroc_reference
 from foli_decon.tools.cibersortx import run_cibersortx
 from foli_decon.tools.scrna_tools import (
     run_bayesprism,
@@ -70,4 +71,6 @@ __all__ = [
     "run_bisque",
     "run_bayesprism",
     "run_cibersortx",
+    "run_bistreroc",
+    "train_bistreroc_reference",
 ]

@@ -9,6 +9,7 @@ from foli_decon.tools import (
     run_consensus_tme,
     run_bayesprism,
     run_bisque,
+    run_bistreroc,
     run_blue,
     run_cdseq,
     run_cibersortx,
@@ -34,6 +35,7 @@ from foli_decon.tools import (
     select_features_markermap,
     select_features_scgenefit,
     train_xcell2_reference,
+    train_bistreroc_reference,
 )
 
 
@@ -73,6 +75,7 @@ def supported_tools() -> tuple[str, ...]:
         "bayesprism",
         "deconrnaseq",
         "cibersortx",
+        "bistreroc",
         "bisque",
         "dwls",
         "music",
@@ -89,7 +92,7 @@ def supported_tools() -> tuple[str, ...]:
 def supported_reference_trainers() -> tuple[str, ...]:
     """Return all supported reference-training tool names."""
 
-    return ("xcell2",)
+    return ("xcell2", "bistreroc")
 
 
 def supported_feature_selectors() -> tuple[str, ...]:
@@ -143,6 +146,8 @@ def run_deconvolution(tool: str, **kwargs) -> DeconvolutionResult:
         return run_deconrnaseq(**kwargs)
     if normalized_tool == "cibersortx":
         return run_cibersortx(**kwargs)
+    if normalized_tool == "bistreroc":
+        return run_bistreroc(**kwargs)
     if normalized_tool == "bisque":
         return run_bisque(**kwargs)
     if normalized_tool == "dwls":
@@ -174,6 +179,8 @@ def train_reference(tool: str, **kwargs) -> ReferenceTrainingResult:
 
     if normalized_tool == "xcell2":
         return train_xcell2_reference(**kwargs)
+    if normalized_tool == "bistreroc":
+        return train_bistreroc_reference(**kwargs)
 
     raise ValueError(f"Unsupported reference trainer '{tool}'. Supported trainers: {supported_reference_trainers()}")
 

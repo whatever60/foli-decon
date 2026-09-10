@@ -590,7 +590,15 @@ def run_two_split_benchmark_from_adata(
                     continue
             for scenario_name, mixture in scenario_mixtures.items():
                 kwargs: dict[str, object] = {"mixture": mixture}
-                if tool in {"epic", "dtangle", "deconrnaseq", "dwls", "cdseq", "autogenes"}:
+                if tool in {
+                    "epic",
+                    "dtangle",
+                    "deconrnaseq",
+                    "dwls",
+                    "cdseq",
+                    "autogenes",
+                    "bistreroc",
+                }:
                     kwargs["signature"] = signature
                 if tool in {
                     "music",

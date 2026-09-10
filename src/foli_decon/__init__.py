@@ -25,6 +25,7 @@ from foli_decon.tools import (
     run_cdseq,
     run_consensus_tme,
     run_cibersortx,
+    run_bistreroc,
     run_deconrnaseq,
     run_dissect,
     run_dtangle,
@@ -47,6 +48,7 @@ from foli_decon.tools import (
     select_features_markermap,
     select_features_scgenefit,
     train_xcell2_reference,
+    train_bistreroc_reference,
 )
 
 __all__ = [
@@ -83,6 +85,8 @@ __all__ = [
     "run_dtangle",
     "run_deconrnaseq",
     "run_cibersortx",
+    "run_bistreroc",
+    "train_bistreroc_reference",
     "run_bisque",
     "run_dwls",
     "run_music",
