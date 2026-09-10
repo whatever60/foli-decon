@@ -42,7 +42,7 @@ extra metadata, gene-overlap behavior, and output semantics.
 
 ## Environment Contract
 
-- Work on `add-more-decon-tools`; do not touch `main`.
+- Use `main` for active development.
 - Do not mutate existing conda/mamba envs during expansion/probe work unless
   the user explicitly allows it.
 - Prefer conda/mamba packages over source installs.
